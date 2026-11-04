@@ -1,11 +1,10 @@
-import createDelivery from "../repository/deliveryRepository.js";
+import { createDelivery } from "../repository/deliveryRepository.js";
 import { findEndpointById } from "../repository/endpointRepository.js";
 import createHttpError from "../utils/createHttpError.js";
 
 async function deliverEvent(event) {
 
     if (!event?.endpointId) throw createHttpError(400, "O campo endpointId é obrigatório e deve ser maior que zero");
-
     const endpointId = event.endpointId;
     if (!Number.isInteger(endpointId)) throw createHttpError(400, "O campo endpointId deve ser um número inteiro");
     if (endpointId < 0 || endpointId > 2147483647) throw createHttpError(400, "O campo endpointId deve estar entre 1 e 2147483647");
@@ -49,7 +48,6 @@ async function deliverEvent(event) {
     })
 
     return { status, httpStatus }
-
 }
 
 export default deliverEvent;
