@@ -1,4 +1,3 @@
-import e from "express";
 import createDelivery from "../repository/deliveryRepository.js";
 import { findEndpointById } from "../repository/endpointRepository.js";
 import createHttpError from "../utils/createHttpError.js";
