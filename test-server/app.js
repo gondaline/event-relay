@@ -7,7 +7,7 @@ app.use(express.json());
 app.post("/webhook", (req, res) => {
 
     try {
-        console.log("Webhook recebido!")
+        console.log("Webhook recebido")
         const { type, data } = req.body
 
         console.log(`Tipo: ${type}`)
