@@ -1,41 +1,72 @@
-import { findDeliveriesForRetry, updateDeliveryAfterRetry } from "../repository/deliveryRepository.js";
+import { findDeliveriesForRetry, findDeliveryById, updateDeliveryAfterRetry } from "../repository/deliveryRepository.js";
 import { findEndpointById } from "../repository/endpointRepository.js";
+import createHttpError from "../utils/createHttpError.js"
+
+async function retryOneDelivery(delivery) {
+    let status = "FAILED";
+    let httpStatus = null;
+    const endpointId = await findEndpointById(delivery.endpoint_id);
+
+    const event = {
+        "endpointId": delivery.endpoint_id,
+        "type": delivery.event_type,
+        "data": delivery.payload
+    }
+
+    try {
+        const response = await fetch(endpointId.url, {
+            signal: AbortSignal.timeout(5000),
+            method: 'POST',
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify(event)
+        })
+
+        if (response.ok) status = "SUCCESS"
+
+        httpStatus = response.status;
+
+    } catch (error) {
+        console.error("Erro ao reenviar evento", error);
+    }
+
+    await updateDeliveryAfterRetry(delivery.id, status, httpStatus);
+
+    return {
+        status,
+        httpStatus
+    };
+}
+
 
 async function retryDeliveries() {
     const deliveries = await findDeliveriesForRetry();
 
     for (const delivery of deliveries) {
-
-        let status = "FAILED";
-        let httpStatus = null;
-        const endpointId = await findEndpointById(delivery.endpoint_id);
-
-        const event = {
-            "endpointId": delivery.endpoint_id,
-            "type": delivery.event_type,
-            "data": delivery.payload
-        }
-
-        try {
-            const response = await fetch(endpointId.url, {
-                signal: AbortSignal.timeout(5000),
-                method: 'POST',
-                headers: {
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify(event)
-            })
-
-            if (response.ok) status = "SUCCESS"
-
-            httpStatus = response.status;
-
-        } catch (error) {
-            console.error("Erro ao reenviar evento", error);
-        }
-
-        await updateDeliveryAfterRetry(delivery.id, status, httpStatus);
+        await retryOneDelivery(delivery);
     }
 }
 
-export default retryDeliveries;
+async function retryDeliveryById(id) {
+    const delivery = await findDeliveryById(id);
+
+    if (!delivery) throw createHttpError(404, "Nenhum ID encontrado");
+    
+    if (delivery.status === "SUCCESS")
+        return {
+            status: "ALREADY_DELIVERED",
+            message: "Webhook já entregue anteriormente"
+        };
+
+    if (delivery.attempts >= 8) {
+        return {
+            "status": "MAX_RETRIES_REACHED",
+            "message": "Limite de tentativas atingido"
+        };
+    }
+
+    return retryOneDelivery(delivery);
+}
+
+export { retryDeliveries, retryDeliveryById };

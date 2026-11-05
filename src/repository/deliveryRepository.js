@@ -19,4 +19,9 @@ async function updateDeliveryAfterRetry(id, status, httpStatus) {
     return result.rowCount;
 }
 
-export { createDelivery, findDeliveriesForRetry, updateDeliveryAfterRetry };
+async function findDeliveryById(id) {
+    const result = await pool.query("SELECT * FROM deliveries WHERE id = $1", [id])
+    return result.rows[0];
+}
+
+export { createDelivery, findDeliveriesForRetry, updateDeliveryAfterRetry, findDeliveryById };
