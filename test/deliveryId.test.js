@@ -131,7 +131,7 @@ describe("Rotas de entregas", () => {
         const { status, body } = await request("GET", "/deliveries/7");
 
         assert.equal(status, 200);
-        assert.deepEqual(body, { id: 7, status: "FAILED" });
+        assert.deepEqual(body, { deliveryId: 7, status: "FAILED" });
         assert.deepEqual(pool.query.mock.calls[0].arguments[1], [7]);
     });
 

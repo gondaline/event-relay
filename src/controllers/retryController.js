@@ -8,13 +8,13 @@ async function retryDelivery(req, res) {
     const id = req.params.id;
 
     try {
-        const response = await retryDeliveryById(id);
+        const result = await retryDeliveryById(id);
 
-        if (response.status === "FAILED") {
-            return res.status(502).json(response);
+        if (result.status === "FAILED") {
+            return res.status(502).json(result);
         }
 
-        return res.status(200).json(response);
+        return res.status(200).json(result);
     } catch (error) {
         if (!error.status) console.error("Erro ao reenviar entrega:", error);
 

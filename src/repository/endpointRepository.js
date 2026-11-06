@@ -1,16 +1,11 @@
 import pool from "../config/database.js"
 
 async function insertEndpoint(name, url) {
-    try {
-        const result = await pool.query(
-            "INSERT INTO endpoints (name, url) VALUES ($1, $2) RETURNING *",
-            [name, url])
-        return result.rows[0];
+    const result = await pool.query(
+        "INSERT INTO endpoints (name, url) VALUES ($1, $2) RETURNING *",
+        [name, url]);
 
-    } catch (error) {
-        console.log("Erro ao inserir endpoint no banco");
-        throw error;
-    }
+    return result.rows[0];
 }
 
 async function findEndpointByUrl(url) {

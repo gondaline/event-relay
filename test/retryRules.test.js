@@ -194,7 +194,7 @@ describe("Retry", () => {
             const res = await callRetryRoute(1);
 
             assert.equal(res.statusCode, 502);
-            assert.deepEqual(res.body, { status: "FAILED", httpStatus });
+            assert.deepEqual(res.body, { deliveryId: 1, status: "FAILED", httpStatus, message: "A entrega falhou e pode ser tentada novamente" });
             assert.equal(deliveries[0].http_status, httpStatus);
             assert.equal(deliveries[0].attempts, 2);
         });
@@ -207,7 +207,7 @@ describe("Retry", () => {
         const res = await callRetryRoute(1);
 
         assert.equal(res.statusCode, 200);
-        assert.deepEqual(res.body, { status: "SUCCESS", httpStatus: 200 });
+        assert.deepEqual(res.body, { deliveryId: 1, status: "SUCCESS", httpStatus: 200, message: "Evento entregue com sucesso" });
         assert.equal(deliveries[0].status, "SUCCESS");
         assert.equal(deliveries[0].attempts, 2);
     });

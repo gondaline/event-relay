@@ -17,7 +17,9 @@ async function registerEndpoint(name, url) {
     const existingEndpoint = await findEndpointByUrl(normalizedUrl);
     if (existingEndpoint) throw createHttpError(409, "Já existe um endpoint cadastrado com essa URL")
 
-    return insertEndpoint(name, normalizedUrl);
+    const endpoint = await insertEndpoint(name, normalizedUrl);
+
+    return { endpointId: endpoint.id, name: endpoint.name, url: endpoint.url };
 }
 
 export default registerEndpoint;

@@ -4,11 +4,11 @@ async function createEndpoint(req, res) {
 
     try {
         const { name, url } = req.body ?? {};
-        const response = await registerEndpoint(name, url)
+        const endpoint = await registerEndpoint(name, url);
 
-        res.status(201).json(response)
+        return res.status(201).json(endpoint);
     } catch (error) {
-        console.error("Erro ao cadastrar endpoint:", error);
+        if (!error.status) console.error("Erro ao cadastrar endpoint:", error);
 
         return res.status(error.status || 500).json({
             message: error.status ? error.message : "Erro interno do servidor"

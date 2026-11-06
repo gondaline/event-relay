@@ -27,7 +27,7 @@ async function deliverEvent(event) {
     if (!event?.endpointId) throw createHttpError(400, "O campo endpointId é obrigatório e deve ser maior que zero");
     const endpointId = event.endpointId;
     if (!Number.isInteger(endpointId)) throw createHttpError(400, "O campo endpointId deve ser um número inteiro");
-    if (endpointId < 0 || endpointId > 2147483647) throw createHttpError(400, "O campo endpointId deve estar entre 1 e 2147483647");
+    if (endpointId < 1 || endpointId > 2147483647) throw createHttpError(400, "O campo endpointId deve estar entre 1 e 2147483647");
 
     if (typeof event.type !== "string") throw createHttpError(400, "O campo type deve ser um texto");
     if (event.type.trim() === "") throw createHttpError(400, "O campo type não pode estar vazio");
@@ -41,7 +41,7 @@ async function deliverEvent(event) {
     const { status, httpStatus, blocked } = await sendWebhook(endpoint.url, event);
 
     const delivery = await createDelivery({
-        "endpoint_id": event.endpointId,
+        "endpoint_id": endpointId,
         "event_type": event.type,
         "payload": event.data,
         "status": status,

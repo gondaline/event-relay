@@ -1,5 +1,3 @@
-import createHttpError from "../utils/createHttpError.js";
-
 async function publishRetryMessage(deliveryId) {
 
     const url = `https://api.cloudflare.com/client/v4/accounts/${process.env.CLOUDFLARE_ACCOUNT_ID}/queues/${process.env.CLOUDFLARE_QUEUE_ID}/messages`;
@@ -13,7 +11,7 @@ async function publishRetryMessage(deliveryId) {
         },
         body: JSON.stringify({
             body: {
-                deliveryId: deliveryId
+                deliveryId
             },
             content_type: "json"
         })
@@ -23,10 +21,8 @@ async function publishRetryMessage(deliveryId) {
     const data = await response.json().catch(() => null);
 
     if (!response.ok || data?.success !== true) {
-        throw createHttpError(500, `Falha ao publicar mensagem na fila (HTTP ${response.status})`)
+        throw new Error(`Falha ao publicar mensagem na fila (HTTP ${response.status})`);
     }
-
-    return;
 }
 
 export default publishRetryMessage;

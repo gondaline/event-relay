@@ -1,6 +1,6 @@
-function normalizeAndValidateUrl(string) {
+function normalizeAndValidateUrl(url) {
 
-    let urlString = string.trim();
+    let urlString = url.trim();
 
     // Só completa com http:// quando a URL não informa um protocolo. Em "localhost:4000",
     // o número depois dos dois-pontos é uma porta; já "ftp://" e "file:" são protocolos,

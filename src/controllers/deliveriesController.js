@@ -10,7 +10,7 @@ async function getDeliveryById(req, res) {
         if (!error.status) console.error("Erro ao consultar entrega:", error);
 
         return res.status(error.status || 500).json({
-            message: error.status ? error.message : "Falha ao consultar ID"
+            message: error.status ? error.message : "Erro interno do servidor"
         });
     }
 

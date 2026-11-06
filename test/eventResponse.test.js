@@ -181,7 +181,7 @@ describe("POST /events", () => {
                     status: "FAILED",
                     httpStatus,
                     retryScheduled: false,
-                    message: "O destino respondeu com um erro que não permite nova tentativa"
+                    message: "O destino não aceitou o evento, e esse resultado não permite nova tentativa"
                 });
                 assert.equal(publishCalls.length, 0);
             });
@@ -403,7 +403,7 @@ describe("POST /events", () => {
 
             assert.equal(body.deliveryId, 2);
             assert.equal(found.status, 200);
-            assert.equal(found.body.id, 2);
+            assert.equal(found.body.deliveryId, 2);
         });
     });
 

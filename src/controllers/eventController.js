@@ -1,14 +1,15 @@
 import deliverEvent from "../services/eventService.js";
+import DELIVERY_MESSAGES from "../utils/deliveryMessages.js";
 import isRetryable from "../utils/isRetryable.js";
 
 function describeResult({ deliveryId, status, httpStatus, retryScheduled, blocked }) {
     if (status === "SUCCESS") {
-        return { code: 200, message: "Evento entregue com sucesso" };
+        return { code: 200, message: DELIVERY_MESSAGES.delivered };
     }
 
     // 422 porque o problema está na URL cadastrada: nenhum serviço externo foi chamado.
     if (blocked) {
-        return { code: 422, message: "A URL do endpoint aponta para um endereço não permitido, e o evento não foi enviado" };
+        return { code: 422, message: DELIVERY_MESSAGES.blocked };
     }
 
     if (retryScheduled) {
@@ -22,7 +23,7 @@ function describeResult({ deliveryId, status, httpStatus, retryScheduled, blocke
         };
     }
 
-    return { code: 502, message: "O destino respondeu com um erro que não permite nova tentativa" };
+    return { code: 502, message: DELIVERY_MESSAGES.permanentFailure };
 }
 
 async function sendEvent(req, res) {
@@ -34,7 +35,7 @@ async function sendEvent(req, res) {
         return res.status(code).json({ ...body, message });
 
     } catch (error) {
-        console.error("Erro ao enviar evento:", error);
+        if (!error.status) console.error("Erro ao enviar evento:", error);
 
         return res.status(error.status || 500).json({
             message: error.status ? error.message : "Erro interno do servidor"
