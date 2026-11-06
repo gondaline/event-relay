@@ -1,6 +1,7 @@
 import { createDelivery } from "../repository/deliveryRepository.js";
 import { findEndpointById } from "../repository/endpointRepository.js";
 import createHttpError from "../utils/createHttpError.js";
+import publishRetryMessage from "./queueService.js";
 
 async function deliverEvent(event) {
 
@@ -39,13 +40,24 @@ async function deliverEvent(event) {
         console.error("Erro ao conectar ao destino:", error);
     }
 
-    await createDelivery({
+    const delivery = await createDelivery({
         "endpoint_id": event.endpointId,
         "event_type": event.type,
         "payload": event.data,
         "status": status,
         "http_status": httpStatus
     })
+
+    if (status === "FAILED" &&
+        (httpStatus === 408 || httpStatus === 429 || httpStatus >= 500 && httpStatus < 600 || httpStatus === null)
+    ) {
+        const id = delivery.id;
+        console.log(`Publicando entrega ${id} na fila`);
+
+        await publishRetryMessage(id);
+        console.log(`Entrega ${id} publicada com sucesso`);
+
+    }
 
     return { status, httpStatus }
 }

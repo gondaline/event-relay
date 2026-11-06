@@ -6,6 +6,12 @@ export default {
 			const deliveryId = message.body.deliveryId;
 			console.log("Worker recebeu deliveryId:", deliveryId);
 
+			console.log({
+				deliveryId,
+				queueAttempts: message.attempts,
+				messageId: message.id
+			})
+
 			try {
 				const response = await fetch(`${env.EVENT_RELAY_API_URL}/deliveries/${deliveryId}/retry`, {
 					method: "POST",
