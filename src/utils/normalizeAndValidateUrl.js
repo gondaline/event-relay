@@ -2,7 +2,12 @@ function normalizeAndValidateUrl(string) {
 
     let urlString = string.trim();
 
-    if (!/^https?:\/\//i.test(urlString)) {
+    // Só completa com http:// quando a URL não informa um protocolo. Em "localhost:4000",
+    // o número depois dos dois-pontos é uma porta; já "ftp://" e "file:" são protocolos,
+    // e acabam recusados pela checagem mais abaixo.
+    const hasProtocol = /^[a-z][a-z0-9+.-]*:(?!\d)/i.test(urlString);
+
+    if (!hasProtocol) {
         urlString = 'http://' + urlString;
     }
 
