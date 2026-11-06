@@ -9,7 +9,6 @@ import isRetryable from "../src/utils/isRetryable.js";
 
 const event = { endpointId: 2, type: "payment.approved", data: { orderId: 123, amount: 150 } };
 
-// Sem resposta do destino.
 const NO_RESPONSE = null;
 
 const RETRYABLE = [408, 429, 500, 502, 503, 504, 599, NO_RESPONSE];
@@ -20,7 +19,6 @@ let destinationAnswers;
 let destinationCalls;
 let published;
 
-// "Tabela" em memória: nenhum teste acessa o banco, a rede ou a Cloudflare de verdade.
 function fakeQuery(sql, params) {
     if (sql.includes("FROM endpoints")) {
         return { rows: [{ id: 2, url: "http://destino.test/hook" }] };
@@ -81,7 +79,6 @@ function addDelivery(fields) {
     return row;
 }
 
-// Chama a rota de retry do mesmo jeito que o Express, sem subir o servidor.
 async function callRetryRoute(id) {
     const res = {
         set() {
@@ -143,7 +140,13 @@ describe("Primeira tentativa", () => {
         it(`${httpStatus} registra a falha e vai para a fila`, async () => {
             destinationAnswers = [httpStatus];
 
-            assert.deepEqual(await deliverEvent(event), { deliveryId: 1, status: "FAILED", httpStatus, retryScheduled: true, blocked: false });
+            assert.deepEqual(await deliverEvent(event), {
+                deliveryId: 1,
+                status: "FAILED",
+                httpStatus,
+                retryScheduled: true,
+                blocked: false
+            });
             assert.deepEqual(published, [1]);
             assert.equal(deliveries[0].status, "FAILED");
             assert.equal(deliveries[0].http_status, httpStatus);
@@ -154,7 +157,13 @@ describe("Primeira tentativa", () => {
         it(`${httpStatus} registra a falha e não vai para a fila`, async () => {
             destinationAnswers = [httpStatus];
 
-            assert.deepEqual(await deliverEvent(event), { deliveryId: 1, status: "FAILED", httpStatus, retryScheduled: false, blocked: false });
+            assert.deepEqual(await deliverEvent(event), {
+                deliveryId: 1,
+                status: "FAILED",
+                httpStatus,
+                retryScheduled: false,
+                blocked: false
+            });
             assert.deepEqual(published, []);
             assert.equal(deliveries[0].status, "FAILED");
             assert.equal(deliveries[0].http_status, httpStatus);
@@ -164,7 +173,13 @@ describe("Primeira tentativa", () => {
     it("200 registra o sucesso e não vai para a fila", async () => {
         destinationAnswers = [200];
 
-        assert.deepEqual(await deliverEvent(event), { deliveryId: 1, status: "SUCCESS", httpStatus: 200, retryScheduled: false, blocked: false });
+        assert.deepEqual(await deliverEvent(event), {
+            deliveryId: 1,
+            status: "SUCCESS",
+            httpStatus: 200,
+            retryScheduled: false,
+            blocked: false
+        });
         assert.deepEqual(published, []);
     });
 });
@@ -194,7 +209,12 @@ describe("Retry", () => {
             const res = await callRetryRoute(1);
 
             assert.equal(res.statusCode, 502);
-            assert.deepEqual(res.body, { deliveryId: 1, status: "FAILED", httpStatus, message: "A entrega falhou e pode ser tentada novamente" });
+            assert.deepEqual(res.body, {
+                deliveryId: 1,
+                status: "FAILED",
+                httpStatus,
+                message: "A entrega falhou e pode ser tentada novamente"
+            });
             assert.equal(deliveries[0].http_status, httpStatus);
             assert.equal(deliveries[0].attempts, 2);
         });

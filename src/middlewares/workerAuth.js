@@ -1,5 +1,4 @@
 function workerAuth(req, res, next) {
-
     if (!process.env.WORKER_AUTH_TOKEN) {
         console.error("WORKER_AUTH_TOKEN não configurado");
 
@@ -9,7 +8,7 @@ function workerAuth(req, res, next) {
     }
 
     const authorization = req.get("Authorization");
-    
+
     if (!authorization) {
         return res.status(401).json({
             message: "Token de autenticação não informado"

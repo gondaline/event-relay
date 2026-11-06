@@ -17,7 +17,6 @@ describe("Cabeçalho que identifica a rota de retry", () => {
     let delivery;
     let destinationStatus;
 
-    // Mesma ordem de src/app.js, sem o banco e sem chamar um destino de verdade.
     before(async () => {
         const app = express();
         app.use(workerAuth);
@@ -50,9 +49,9 @@ describe("Cabeçalho que identifica a rota de retry", () => {
             if (sql.includes("UPDATE deliveries")) return { rows: [], rowCount: 1 };
             return { rows: delivery ? [delivery] : [] };
         });
-        mock.method(globalThis, "fetch", async (url, options) => (
+        mock.method(globalThis, "fetch", async (url, options) =>
             url.startsWith(baseUrl) ? realFetch(url, options) : new Response(null, { status: destinationStatus })
-        ));
+        );
         mock.method(console, "error", () => {});
     });
 

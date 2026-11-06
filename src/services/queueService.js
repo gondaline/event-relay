@@ -1,5 +1,4 @@
 async function publishRetryMessage(deliveryId) {
-
     const url = `https://api.cloudflare.com/client/v4/accounts/${process.env.CLOUDFLARE_ACCOUNT_ID}/queues/${process.env.CLOUDFLARE_QUEUE_ID}/messages`;
 
     const response = await fetch(url, {

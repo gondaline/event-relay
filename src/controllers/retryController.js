@@ -1,8 +1,7 @@
 import retryDeliveryById from "../services/retryService.js";
 
 async function retryDelivery(req, res) {
-
-    // Avisa o Worker de que esta resposta veio mesmo da rota de retry da API.
+    // O Worker usa este cabeçalho para confirmar que a resposta veio da API.
     res.set("X-EventRelay-Retry-Handled", "true");
 
     const id = req.params.id;
@@ -20,7 +19,7 @@ async function retryDelivery(req, res) {
 
         return res.status(error.status || 500).json({
             message: error.status ? error.message : "Erro interno do servidor"
-        })
+        });
     }
 }
 

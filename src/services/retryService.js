@@ -54,7 +54,7 @@ async function retryDeliveryById(id) {
         return { deliveryId, status: "MAX_RETRIES_REACHED", httpStatus, message: "Limite de tentativas atingido" };
     }
 
-    // Se o último erro foi definitivo, não envia de novo, mesmo que a mensagem chegue repetida.
+    // A fila pode repetir mensagens: um erro definitivo já registrado não gera novo envio.
     if (!isRetryable(httpStatus)) {
         return { deliveryId, status: "PERMANENT_FAILURE", httpStatus, message: DELIVERY_MESSAGES.permanentFailure };
     }

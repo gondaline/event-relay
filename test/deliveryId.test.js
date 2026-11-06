@@ -31,7 +31,11 @@ const INVALID_IDS = [
 ];
 
 describe("parseDeliveryId", () => {
-    for (const [input, expected] of [["1", 1], ["42", 42], ["2147483647", 2147483647]]) {
+    for (const [input, expected] of [
+        ["1", 1],
+        ["42", 42],
+        ["2147483647", 2147483647]
+    ]) {
         it(`aceita "${input}" e devolve um número`, () => {
             assert.equal(parseDeliveryId(input), expected);
         });
@@ -48,7 +52,6 @@ describe("Rotas de entregas", () => {
     let server;
     let baseUrl;
 
-    // Rotas reais, sem o banco: nenhuma consulta chega ao PostgreSQL de verdade.
     before(async () => {
         const app = express();
         app.use(express.json());

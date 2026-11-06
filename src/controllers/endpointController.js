@@ -1,7 +1,6 @@
 import registerEndpoint from "../services/endpointService.js";
 
 async function createEndpoint(req, res) {
-
     try {
         const { name, url } = req.body ?? {};
         const endpoint = await registerEndpoint(name, url);

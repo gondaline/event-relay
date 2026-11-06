@@ -21,7 +21,6 @@ describe("POST /events", () => {
     let cloudflareAnswer;
     let publishCalls;
 
-    // "Tabela" em memória: nenhum teste acessa o banco, a rede ou a Cloudflare de verdade.
     function fakeQuery(sql, params) {
         if (sql.includes("FROM endpoints")) {
             return { rows: params[0] === 2 ? [{ id: 2, url: "http://destino.test/hook" }] : [] };
@@ -194,8 +193,18 @@ describe("POST /events", () => {
             ["Cloudflare responde 403", () => Response.json({ success: false }, { status: 403 })],
             ["Cloudflare responde 200 com success false", () => Response.json({ success: false })],
             ["Cloudflare responde uma página HTML", () => new Response("<html>Erro</html>", { status: 502 })],
-            ["falha de rede", () => { throw new TypeError("fetch failed"); }],
-            ["limite de tempo atingido", () => { throw new DOMException("The operation timed out", "TimeoutError"); }]
+            [
+                "falha de rede",
+                () => {
+                    throw new TypeError("fetch failed");
+                }
+            ],
+            [
+                "limite de tempo atingido",
+                () => {
+                    throw new DOMException("The operation timed out", "TimeoutError");
+                }
+            ]
         ];
 
         for (const [label, answer] of failures) {
@@ -215,7 +224,8 @@ describe("POST /events", () => {
                         status: "FAILED",
                         httpStatus: 500,
                         retryScheduled: false,
-                        message: "Evento registrado, mas a nova tentativa automática não foi agendada. Use POST /deliveries/1/retry para tentar novamente"
+                        message:
+                            "Evento registrado, mas a nova tentativa automática não foi agendada. Use POST /deliveries/1/retry para tentar novamente"
                     });
                 });
 

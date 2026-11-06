@@ -1,12 +1,10 @@
-// A rota de retry da API envia este cabeçalho em todas as respostas. Sem ele, não há como
-// saber se a resposta veio mesmo da API ou de um túnel ou servidor no meio do caminho.
+// Enviado pela rota de retry: confirma que a resposta não veio de um túnel ou servidor intermediário.
 // Por isso, no deploy, a API deve ser atualizada antes do Worker (veja docs/deploy.md).
 const API_HEADER = "X-EventRelay-Retry-Handled";
 
 const BASE_DELAY_SECONDS = 60;
 const MAX_DELAY_SECONDS = 3600;
 
-// Dobra a espera a cada entrega da mensagem: 60 s, 120 s, 240 s... até o limite de 1 hora.
 function getRetryDelay(attempts) {
 	return Math.min(BASE_DELAY_SECONDS * 2 ** (attempts - 1), MAX_DELAY_SECONDS);
 }
@@ -36,8 +34,8 @@ async function processMessage(message, env) {
 
 	const fromApi = response.headers.get(API_HEADER) === "true";
 
-	// 2xx: não há mais o que fazer (entregue, limite atingido ou erro definitivo do destino).
-	// 400 e 404: o ID é inválido ou a entrega não existe, e tentar de novo não mudaria isso.
+	// 2xx: entregue, limite atingido ou erro definitivo do destino.
+	// 400 e 404: ID inválido ou entrega inexistente, e uma nova tentativa não mudaria isso.
 	const isFinished = response.ok || response.status === 400 || response.status === 404;
 
 	if (fromApi && isFinished) {

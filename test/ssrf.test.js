@@ -17,13 +17,14 @@ const BLOCKED_SEND = { status: "FAILED", httpStatus: null, blocked: true };
 const UNVERIFIED_SEND = { status: "FAILED", httpStatus: null, blocked: false };
 
 function mockDns(addresses) {
-    mock.method(dns, "lookup", async () => addresses.map((address) => ({
-        address,
-        family: address.includes(":") ? 6 : 4
-    })));
+    mock.method(dns, "lookup", async () =>
+        addresses.map((address) => ({
+            address,
+            family: address.includes(":") ? 6 : 4
+        }))
+    );
 }
 
-// Por padrão, nenhum teste acessa o banco, a rede ou a Cloudflare de verdade.
 beforeEach(() => {
     delete process.env.ALLOW_PRIVATE_URLS;
     delete process.env.NODE_ENV;
@@ -306,9 +307,9 @@ describe("Cadastro de endpoints", () => {
     });
 
     function mockEndpointInsert() {
-        pool.query.mock.mockImplementation(async (sql, params) => (
+        pool.query.mock.mockImplementation(async (sql, params) =>
             sql.startsWith("SELECT") ? { rows: [] } : { rows: [{ id: 1, name: params[0], url: params[1] }] }
-        ));
+        );
     }
 
     it("aceita um domínio público", async () => {
@@ -467,7 +468,9 @@ describe("Fluxos completos com destino bloqueado", () => {
 
         pool.query.mock.mockImplementation(async (sql, params) => {
             if (sql.includes("FROM deliveries")) {
-                return { rows: [{ id: 7, endpoint_id: 2, event_type: "t", payload: {}, status: "FAILED", http_status: null, attempts: 1 }] };
+                return {
+                    rows: [{ id: 7, endpoint_id: 2, event_type: "t", payload: {}, status: "FAILED", http_status: null, attempts: 1 }]
+                };
             }
             if (sql.includes("FROM endpoints")) return { rows: [{ id: 2, url: internalUrl }] };
             updates.push(params);

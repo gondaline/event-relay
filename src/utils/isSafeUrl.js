@@ -14,51 +14,45 @@ function createBlockList(family, subnets) {
     return blockList;
 }
 
-// As listas são separadas porque o BlockList também compara um IPv4 com as regras
-// de IPv6, e a regra ::/3 acabaria bloqueando todos os endereços IPv4.
+// Listas separadas: o BlockList compara IPv4 também com regras IPv6, e ::/3 bloquearia todo IPv4.
 const blockedIpv4 = createBlockList("ipv4", [
-    ["0.0.0.0", 8],       // "esta rede"
-    ["10.0.0.0", 8],      // privada
-    ["100.64.0.0", 10],   // compartilhada entre operadoras (CGNAT)
-    ["127.0.0.0", 8],     // a própria máquina (loopback)
-    ["169.254.0.0", 16],  // link-local, inclui os metadados de nuvem
-    ["172.16.0.0", 12],   // privada
-    ["192.0.0.0", 24],    // reservada
-    ["192.0.2.0", 24],    // documentação
-    ["192.88.99.0", 24],  // reservada (6to4)
-    ["192.168.0.0", 16],  // privada
-    ["198.18.0.0", 15],   // testes de desempenho
+    ["0.0.0.0", 8], // esta rede
+    ["10.0.0.0", 8], // privada
+    ["100.64.0.0", 10], // CGNAT
+    ["127.0.0.0", 8], // loopback
+    ["169.254.0.0", 16], // link-local, inclui metadados de nuvem
+    ["172.16.0.0", 12], // privada
+    ["192.0.0.0", 24], // reservada
+    ["192.0.2.0", 24], // documentação
+    ["192.88.99.0", 24], // reservada (6to4)
+    ["192.168.0.0", 16], // privada
+    ["198.18.0.0", 15], // testes de desempenho
     ["198.51.100.0", 24], // documentação
-    ["203.0.113.0", 24],  // documentação
-    ["224.0.0.0", 4],     // multicast
-    ["240.0.0.0", 4]      // reservada, inclui 255.255.255.255
+    ["203.0.113.0", 24], // documentação
+    ["224.0.0.0", 4], // multicast
+    ["240.0.0.0", 4] // reservada
 ]);
 
-// No IPv6, apenas a faixa 2000::/3 é pública. As três primeiras regras bloqueiam todo
-// o resto: ::1, fc00::/7 (privada), fe80::/10 (link-local) e IPv4 escrito como IPv6.
+// No IPv6, só 2000::/3 é pública: as três primeiras regras bloqueiam todo o resto.
 const blockedIpv6 = createBlockList("ipv6", [
     ["::", 3],
     ["4000::", 2],
     ["8000::", 1],
-    ["2001::", 23],     // reservada
+    ["2001::", 23], // reservada
     ["2001:db8::", 32], // documentação
-    ["2002::", 16],     // 6to4, pode conter um IPv4 privado
-    ["3fff::", 20]      // documentação
+    ["2002::", 16], // 6to4, pode conter um IPv4 privado
+    ["3fff::", 20] // documentação
 ]);
 
 function isBlockedAddress({ address, family }) {
-    return family === 4
-        ? blockedIpv4.check(address, "ipv4")
-        : blockedIpv6.check(address, "ipv6");
+    return family === 4 ? blockedIpv4.check(address, "ipv4") : blockedIpv6.check(address, "ipv6");
 }
 
 function arePrivateUrlsAllowed() {
     return process.env.ALLOW_PRIVATE_URLS === "true" && process.env.NODE_ENV !== "production";
 }
 
-// SAFE: pode enviar.
-// BLOCKED: a URL não é permitida, e tentar de novo não mudaria isso.
-// UNVERIFIED: o DNS não respondeu, então não há como verificar agora. A falha é temporária.
+// BLOCKED é definitivo. UNVERIFIED significa que o DNS não respondeu, e a falha é temporária.
 async function checkUrl(url) {
     let urlObject;
 
@@ -76,14 +70,10 @@ async function checkUrl(url) {
     const hostname = urlObject.hostname.replace(/^\[|\]$/g, "");
 
     try {
-        const addresses = await Promise.race([
-            dns.lookup(hostname, { all: true }),
-            wait(DNS_TIMEOUT_MS, null, { ref: false })
-        ]);
+        const addresses = await Promise.race([dns.lookup(hostname, { all: true }), wait(DNS_TIMEOUT_MS, null, { ref: false })]);
 
         if (!addresses?.length) return "UNVERIFIED";
 
-        // Um único endereço bloqueado já recusa a URL.
         return addresses.some(isBlockedAddress) ? "BLOCKED" : "SAFE";
     } catch (error) {
         return "UNVERIFIED";

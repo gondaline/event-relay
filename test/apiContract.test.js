@@ -19,7 +19,6 @@ describe("Contrato HTTP da API", () => {
     let deliveries;
     let destinationStatus;
 
-    // "Tabelas" em memória: nenhum teste acessa o banco, a rede ou a Cloudflare de verdade.
     function fakeQuery(sql, params) {
         if (sql.includes("INSERT INTO endpoints")) return { rows: [{ id: 9, name: params[0], url: params[1] }] };
         if (sql.includes("FROM endpoints WHERE url")) return { rows: params[0] === DESTINATION_URL ? [{ id: 2 }] : [] };
@@ -129,7 +128,6 @@ describe("Contrato HTTP da API", () => {
             assert.equal(status, 201);
             assert.deepEqual(body, { endpointId: 9, name: "Destino", url: "http://destino.test/novo" });
         });
-
     });
 
     describe("POST /deliveries/:id/retry", () => {

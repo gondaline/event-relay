@@ -33,7 +33,6 @@ async function sendEvent(req, res) {
         const { blocked, ...body } = result;
 
         return res.status(code).json({ ...body, message });
-
     } catch (error) {
         if (!error.status) console.error("Erro ao enviar evento:", error);
 

@@ -1,4 +1,4 @@
-import getDeliveryByIdService from "../services/deliveryService.js"
+import getDeliveryByIdService from "../services/deliveryService.js";
 
 async function getDeliveryById(req, res) {
     const id = req.params.id;
@@ -13,7 +13,6 @@ async function getDeliveryById(req, res) {
             message: error.status ? error.message : "Erro interno do servidor"
         });
     }
-
 }
 
 export default getDeliveryById;

@@ -1,6 +1,4 @@
--- Estrutura do banco do EventRelay.
 -- Uso: psql -U <usuario> -d <banco> -f db/schema.sql
--- Este arquivo não apaga nada: tabelas que já existem são mantidas como estão.
 
 CREATE TABLE IF NOT EXISTS endpoints (
     id   SERIAL PRIMARY KEY,

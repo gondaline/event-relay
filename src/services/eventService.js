@@ -5,8 +5,7 @@ import isRetryable from "../utils/isRetryable.js";
 import publishRetryMessage from "./queueService.js";
 import sendWebhook from "./webhookService.js";
 
-// A entrega já está salva quando esta função é chamada. Se a publicação falhar,
-// o cliente precisa saber disso, e não receber um erro que esconda o deliveryId.
+// A entrega já está salva: a falha na publicação é informada ao cliente, não relançada.
 async function scheduleRetry(deliveryId) {
     try {
         console.log(`Publicando entrega ${deliveryId} na fila`);
@@ -23,7 +22,6 @@ async function scheduleRetry(deliveryId) {
 }
 
 async function deliverEvent(event) {
-
     if (!event?.endpointId) throw createHttpError(400, "O campo endpointId é obrigatório e deve ser maior que zero");
     const endpointId = event.endpointId;
     if (!Number.isInteger(endpointId)) throw createHttpError(400, "O campo endpointId deve ser um número inteiro");
@@ -33,22 +31,23 @@ async function deliverEvent(event) {
     if (event.type.trim() === "") throw createHttpError(400, "O campo type não pode estar vazio");
     if (event.type.length > 200) throw createHttpError(400, "O campo type deve ter no máximo 200 caracteres");
 
-    if (typeof event.data !== "object" || event.data === null || Array.isArray(event.data)) throw createHttpError(400, "O campo data deve ser um objeto");
+    if (typeof event.data !== "object" || event.data === null || Array.isArray(event.data))
+        throw createHttpError(400, "O campo data deve ser um objeto");
 
-    const endpoint = await findEndpointById(endpointId)
+    const endpoint = await findEndpointById(endpointId);
     if (!endpoint) throw createHttpError(404, "Endpoint não encontrado. Cadastre um em POST /endpoints");
 
     const { status, httpStatus, blocked } = await sendWebhook(endpoint.url, event);
 
     const delivery = await createDelivery({
-        "endpoint_id": endpointId,
-        "event_type": event.type,
-        "payload": event.data,
-        "status": status,
-        "http_status": httpStatus
-    })
+        endpoint_id: endpointId,
+        event_type: event.type,
+        payload: event.data,
+        status: status,
+        http_status: httpStatus
+    });
 
-    const retryScheduled = !blocked && isRetryable(httpStatus) && await scheduleRetry(delivery.id);
+    const retryScheduled = !blocked && isRetryable(httpStatus) && (await scheduleRetry(delivery.id));
 
     return { deliveryId: delivery.id, status, httpStatus, retryScheduled, blocked };
 }

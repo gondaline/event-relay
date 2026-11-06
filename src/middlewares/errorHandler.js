@@ -9,10 +9,7 @@ function notFoundHandler(req, res) {
     });
 }
 
-// O Express só reconhece um middleware de erro quando ele declara os 4 parâmetros,
-// por isso "next" precisa continuar na assinatura.
 function errorHandler(error, req, res, next) {
-
     if (res.headersSent) {
         return next(error);
     }

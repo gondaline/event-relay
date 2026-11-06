@@ -22,12 +22,11 @@ async function sendWebhook(url, event) {
             signal: AbortSignal.timeout(5000),
             // Um redirecionamento poderia levar o envio para um endereço interno.
             redirect: "manual",
-            method: 'POST',
+            method: "POST",
             headers: {
                 "Content-Type": "application/json"
             },
-            // Os campos são escolhidos aqui para que a primeira tentativa
-            // e os retries enviem sempre o mesmo formato.
+            // Campos fixos para que a primeira tentativa e os retries enviem o mesmo corpo.
             body: JSON.stringify({
                 endpointId: event.endpointId,
                 type: event.type,
@@ -38,7 +37,6 @@ async function sendWebhook(url, event) {
         if (response.ok) status = "SUCCESS";
 
         httpStatus = response.status;
-
     } catch (error) {
         console.error("Erro ao enviar webhook:", error);
     }
