@@ -441,7 +441,7 @@ describe("Fluxos completos com destino bloqueado", () => {
 
         pool.query.mock.mockImplementation(async (sql, params) => {
             if (sql.includes("FROM deliveries")) {
-                return { rows: [{ id: 7, endpoint_id: 2, event_type: "t", payload: {}, status: "FAILED", attempts: 1 }] };
+                return { rows: [{ id: 7, endpoint_id: 2, event_type: "t", payload: {}, status: "FAILED", http_status: null, attempts: 1 }] };
             }
             if (sql.includes("FROM endpoints")) return { rows: [{ id: 2, url: internalUrl }] };
             updates.push(params);

@@ -1,6 +1,7 @@
 import { createDelivery } from "../repository/deliveryRepository.js";
 import { findEndpointById } from "../repository/endpointRepository.js";
 import createHttpError from "../utils/createHttpError.js";
+import isRetryable from "../utils/isRetryable.js";
 import publishRetryMessage from "./queueService.js";
 import sendWebhook from "./webhookService.js";
 
@@ -30,9 +31,7 @@ async function deliverEvent(event) {
         "http_status": httpStatus
     })
 
-    if (status === "FAILED" &&
-        (httpStatus === 408 || httpStatus === 429 || httpStatus >= 500 && httpStatus < 600 || httpStatus === null)
-    ) {
+    if (isRetryable(httpStatus)) {
         const id = delivery.id;
         console.log(`Publicando entrega ${id} na fila`);
 

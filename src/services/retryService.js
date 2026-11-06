@@ -1,7 +1,16 @@
 import { findDeliveriesForRetry, findDeliveryById, updateDeliveryAfterRetry } from "../repository/deliveryRepository.js";
 import { findEndpointById } from "../repository/endpointRepository.js";
 import createHttpError from "../utils/createHttpError.js"
+import isRetryable from "../utils/isRetryable.js";
 import sendWebhook from "./webhookService.js";
+
+function permanentFailure(httpStatus) {
+    return {
+        status: "PERMANENT_FAILURE",
+        httpStatus,
+        message: "O destino respondeu com um erro que não permite nova tentativa"
+    };
+}
 
 async function retryOneDelivery(delivery) {
     const endpointId = await findEndpointById(delivery.endpoint_id);
@@ -15,6 +24,11 @@ async function retryOneDelivery(delivery) {
     const { status, httpStatus } = await sendWebhook(endpointId.url, event);
 
     await updateDeliveryAfterRetry(delivery.id, status, httpStatus);
+
+    // No banco, a entrega continua FAILED. Esta resposta só avisa o Worker de que acabou.
+    if (status === "FAILED" && !isRetryable(httpStatus)) {
+        return permanentFailure(httpStatus);
+    }
 
     return {
         status,
@@ -47,6 +61,11 @@ async function retryDeliveryById(id) {
             "status": "MAX_RETRIES_REACHED",
             "message": "Limite de tentativas atingido"
         };
+    }
+
+    // Se o último erro foi definitivo, não envia de novo, mesmo que a mensagem chegue repetida.
+    if (delivery.status === "FAILED" && !isRetryable(delivery.http_status)) {
+        return permanentFailure(delivery.http_status);
     }
 
     return retryOneDelivery(delivery);
