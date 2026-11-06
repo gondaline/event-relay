@@ -12,10 +12,7 @@ app.post("/webhook", (req, res) => {
 
         console.log(`Tipo: ${type}`)
 
-        console.log(`Dados: {
-        transactionId: ${data.transactionId},
-        amount: ${data.amount}
-        }`)
+        console.log("Dados:", data);
 
         res.status(200).json({ message: "Webhook recebido com sucesso" });
     } catch (error) {
@@ -23,6 +20,12 @@ app.post("/webhook", (req, res) => {
     }
 })
 
-app.listen(PORT, () => {
+// No Express 5, um erro ao abrir a porta chega neste callback, e não como exceção.
+app.listen(PORT, (error) => {
+    if (error) {
+        console.error(`Não foi possível iniciar o servidor de teste na porta ${PORT}:`, error.message);
+        process.exit(1);
+    }
+
     console.log(`Servidor de teste rodando na porta ${PORT}`);
 });

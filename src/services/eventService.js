@@ -38,7 +38,7 @@ async function deliverEvent(event) {
     const endpoint = await findEndpointById(endpointId)
     if (!endpoint) throw createHttpError(404, "Endpoint não encontrado. Cadastre um em POST /endpoints");
 
-    const { status, httpStatus } = await sendWebhook(endpoint.url, event);
+    const { status, httpStatus, blocked } = await sendWebhook(endpoint.url, event);
 
     const delivery = await createDelivery({
         "endpoint_id": event.endpointId,
@@ -48,9 +48,9 @@ async function deliverEvent(event) {
         "http_status": httpStatus
     })
 
-    const retryScheduled = isRetryable(httpStatus) && await scheduleRetry(delivery.id);
+    const retryScheduled = !blocked && isRetryable(httpStatus) && await scheduleRetry(delivery.id);
 
-    return { deliveryId: delivery.id, status, httpStatus, retryScheduled };
+    return { deliveryId: delivery.id, status, httpStatus, retryScheduled, blocked };
 }
 
 export default deliverEvent;

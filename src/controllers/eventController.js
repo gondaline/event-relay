@@ -1,9 +1,14 @@
 import deliverEvent from "../services/eventService.js";
 import isRetryable from "../utils/isRetryable.js";
 
-function describeResult({ deliveryId, status, httpStatus, retryScheduled }) {
+function describeResult({ deliveryId, status, httpStatus, retryScheduled, blocked }) {
     if (status === "SUCCESS") {
         return { code: 200, message: "Evento entregue com sucesso" };
+    }
+
+    // 422 porque o problema está na URL cadastrada: nenhum serviço externo foi chamado.
+    if (blocked) {
+        return { code: 422, message: "A URL do endpoint aponta para um endereço não permitido, e o evento não foi enviado" };
     }
 
     if (retryScheduled) {
@@ -24,8 +29,9 @@ async function sendEvent(req, res) {
     try {
         const result = await deliverEvent(req.body);
         const { code, message } = describeResult(result);
+        const { blocked, ...body } = result;
 
-        return res.status(code).json({ ...result, message });
+        return res.status(code).json({ ...body, message });
 
     } catch (error) {
         console.error("Erro ao enviar evento:", error);

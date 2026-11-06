@@ -1,4 +1,4 @@
-import { retryDeliveryById } from "../services/retryService.js";
+import retryDeliveryById from "../services/retryService.js";
 
 async function retryDelivery(req, res) {
 

@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import dns from "node:dns/promises";
 import { after, afterEach, before, beforeEach, describe, it, mock } from "node:test";
 import { inspect } from "node:util";
 
@@ -258,6 +259,119 @@ describe("POST /events", () => {
             const logs = errorLogs();
             assert.match(logs, /HTTP 403/);
             assert.equal(logs.includes("<html>"), false);
+        });
+    });
+
+    describe("destino bloqueado pela proteção de SSRF", () => {
+        beforeEach(() => {
+            delete process.env.ALLOW_PRIVATE_URLS;
+            mock.method(dns, "lookup", async () => [{ address: "10.0.0.5", family: 4 }]);
+            destinationAnswers = [200];
+        });
+
+        it("POST /events responde 422, sem chamar o destino e sem usar a fila", async () => {
+            const { status, type, body } = await request("POST", "/events", event);
+
+            assert.equal(status, 422);
+            assert.match(type, /application\/json/);
+            assert.deepEqual(body, {
+                deliveryId: 1,
+                status: "FAILED",
+                httpStatus: null,
+                retryScheduled: false,
+                message: "A URL do endpoint aponta para um endereço não permitido, e o evento não foi enviado"
+            });
+            assert.deepEqual(destinationAnswers, [200]);
+            assert.equal(publishCalls.length, 0);
+        });
+
+        it("mantém o registro da entrega", async () => {
+            await request("POST", "/events", event);
+
+            assert.equal(deliveries.length, 1);
+            assert.equal(deliveries[0].status, "FAILED");
+            assert.equal(deliveries[0].http_status, null);
+        });
+
+        it("registra o bloqueio no log", async () => {
+            await request("POST", "/events", event);
+
+            assert.match(errorLogs(), /Envio bloqueado para o endpoint 2/);
+        });
+
+        it("uma mensagem que já estava na fila termina na rota de retry", async () => {
+            deliveries.push({ id: 1, endpoint_id: 2, event_type: "t", payload: {}, status: "FAILED", http_status: 500, attempts: 1 });
+
+            const { status, body } = await request("POST", "/deliveries/1/retry");
+
+            assert.equal(status, 200);
+            assert.equal(body.status, "PERMANENT_FAILURE");
+            assert.equal(body.httpStatus, null);
+            assert.deepEqual(destinationAnswers, [200]);
+            assert.equal(deliveries[0].status, "FAILED");
+            assert.equal(deliveries[0].attempts, 2);
+        });
+
+        it("a rota de retry também não chama o destino depois do bloqueio", async () => {
+            await request("POST", "/events", event);
+
+            const { status, body } = await request("POST", "/deliveries/1/retry");
+
+            assert.equal(status, 200);
+            assert.equal(body.status, "PERMANENT_FAILURE");
+            assert.deepEqual(destinationAnswers, [200]);
+        });
+
+        it("se a URL deixar de ser bloqueada, a rota de retry consegue entregar", async () => {
+            await request("POST", "/events", event);
+            dns.lookup.mock.mockImplementation(async () => [{ address: "8.8.8.8", family: 4 }]);
+
+            const { status, body } = await request("POST", "/deliveries/1/retry");
+
+            assert.equal(status, 200);
+            assert.equal(body.status, "SUCCESS");
+            assert.deepEqual(destinationAnswers, []);
+        });
+    });
+
+    describe("DNS sem resposta no envio", () => {
+        beforeEach(() => {
+            delete process.env.ALLOW_PRIVATE_URLS;
+            mock.method(dns, "lookup", async () => {
+                throw Object.assign(new Error("not found"), { code: "ENOTFOUND" });
+            });
+            destinationAnswers = [200];
+        });
+
+        it("POST /events responde 202 e agenda o retry, sem chamar o destino", async () => {
+            const { status, body } = await request("POST", "/events", event);
+
+            assert.equal(status, 202);
+            assert.equal(body.httpStatus, null);
+            assert.equal(body.retryScheduled, true);
+            assert.equal(publishCalls.length, 1);
+            assert.deepEqual(destinationAnswers, [200]);
+            assert.match(errorLogs(), /não foi possível verificar o DNS/);
+        });
+
+        it("a rota de retry pede outra tentativa enquanto o DNS não responde", async () => {
+            await request("POST", "/events", event);
+
+            const { status, body } = await request("POST", "/deliveries/1/retry");
+
+            assert.equal(status, 502);
+            assert.equal(body.status, "FAILED");
+            assert.equal(deliveries[0].attempts, 2);
+        });
+
+        it("quando o DNS volta, a rota de retry entrega", async () => {
+            await request("POST", "/events", event);
+            dns.lookup.mock.mockImplementation(async () => [{ address: "8.8.8.8", family: 4 }]);
+
+            const { status, body } = await request("POST", "/deliveries/1/retry");
+
+            assert.equal(status, 200);
+            assert.equal(body.status, "SUCCESS");
         });
     });
 

@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, it, mock } from "node:test";
 import pool from "../src/config/database.js";
 import retryDelivery from "../src/controllers/retryController.js";
 import deliverEvent from "../src/services/eventService.js";
-import { retryDeliveryById } from "../src/services/retryService.js";
+import retryDeliveryById from "../src/services/retryService.js";
 import isRetryable from "../src/utils/isRetryable.js";
 
 const event = { endpointId: 2, type: "payment.approved", data: { orderId: 123, amount: 150 } };
@@ -143,7 +143,7 @@ describe("Primeira tentativa", () => {
         it(`${httpStatus} registra a falha e vai para a fila`, async () => {
             destinationAnswers = [httpStatus];
 
-            assert.deepEqual(await deliverEvent(event), { deliveryId: 1, status: "FAILED", httpStatus, retryScheduled: true });
+            assert.deepEqual(await deliverEvent(event), { deliveryId: 1, status: "FAILED", httpStatus, retryScheduled: true, blocked: false });
             assert.deepEqual(published, [1]);
             assert.equal(deliveries[0].status, "FAILED");
             assert.equal(deliveries[0].http_status, httpStatus);
@@ -154,7 +154,7 @@ describe("Primeira tentativa", () => {
         it(`${httpStatus} registra a falha e não vai para a fila`, async () => {
             destinationAnswers = [httpStatus];
 
-            assert.deepEqual(await deliverEvent(event), { deliveryId: 1, status: "FAILED", httpStatus, retryScheduled: false });
+            assert.deepEqual(await deliverEvent(event), { deliveryId: 1, status: "FAILED", httpStatus, retryScheduled: false, blocked: false });
             assert.deepEqual(published, []);
             assert.equal(deliveries[0].status, "FAILED");
             assert.equal(deliveries[0].http_status, httpStatus);
@@ -164,7 +164,7 @@ describe("Primeira tentativa", () => {
     it("200 registra o sucesso e não vai para a fila", async () => {
         destinationAnswers = [200];
 
-        assert.deepEqual(await deliverEvent(event), { deliveryId: 1, status: "SUCCESS", httpStatus: 200, retryScheduled: false });
+        assert.deepEqual(await deliverEvent(event), { deliveryId: 1, status: "SUCCESS", httpStatus: 200, retryScheduled: false, blocked: false });
         assert.deepEqual(published, []);
     });
 });

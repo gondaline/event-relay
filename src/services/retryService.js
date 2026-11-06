@@ -1,20 +1,20 @@
-import { findDeliveriesForRetry, findDeliveryById, updateDeliveryAfterRetry } from "../repository/deliveryRepository.js";
+import { findDeliveryById, updateDeliveryAfterRetry } from "../repository/deliveryRepository.js";
 import { findEndpointById } from "../repository/endpointRepository.js";
 import createHttpError from "../utils/createHttpError.js"
 import isRetryable from "../utils/isRetryable.js";
 import parseDeliveryId from "../utils/parseDeliveryId.js";
 import sendWebhook from "./webhookService.js";
 
-function permanentFailure(httpStatus) {
+function permanentFailure(httpStatus, message) {
     return {
         status: "PERMANENT_FAILURE",
         httpStatus,
-        message: "O destino respondeu com um erro que não permite nova tentativa"
+        message
     };
 }
 
 async function retryOneDelivery(delivery) {
-    const endpointId = await findEndpointById(delivery.endpoint_id);
+    const endpoint = await findEndpointById(delivery.endpoint_id);
 
     const event = {
         "endpointId": delivery.endpoint_id,
@@ -22,28 +22,23 @@ async function retryOneDelivery(delivery) {
         "data": delivery.payload
     }
 
-    const { status, httpStatus } = await sendWebhook(endpointId.url, event);
+    const { status, httpStatus, blocked } = await sendWebhook(endpoint.url, event);
 
     await updateDeliveryAfterRetry(delivery.id, status, httpStatus);
 
-    // No banco, a entrega continua FAILED. Esta resposta só avisa o Worker de que acabou.
+    // No banco, a entrega continua FAILED. Estas respostas só avisam o Worker de que acabou.
+    if (blocked) {
+        return permanentFailure(httpStatus, "A URL do endpoint aponta para um endereço não permitido, e o evento não foi enviado");
+    }
+
     if (status === "FAILED" && !isRetryable(httpStatus)) {
-        return permanentFailure(httpStatus);
+        return permanentFailure(httpStatus, "O destino respondeu com um erro que não permite nova tentativa");
     }
 
     return {
         status,
         httpStatus
     };
-}
-
-
-async function retryDeliveries() {
-    const deliveries = await findDeliveriesForRetry();
-
-    for (const delivery of deliveries) {
-        await retryOneDelivery(delivery);
-    }
 }
 
 async function retryDeliveryById(id) {
@@ -67,10 +62,10 @@ async function retryDeliveryById(id) {
 
     // Se o último erro foi definitivo, não envia de novo, mesmo que a mensagem chegue repetida.
     if (delivery.status === "FAILED" && !isRetryable(delivery.http_status)) {
-        return permanentFailure(delivery.http_status);
+        return permanentFailure(delivery.http_status, "O destino respondeu com um erro que não permite nova tentativa");
     }
 
     return retryOneDelivery(delivery);
 }
 
-export { retryDeliveries, retryDeliveryById };
+export default retryDeliveryById;

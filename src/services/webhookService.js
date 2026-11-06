@@ -1,4 +1,4 @@
-import isSafeUrl from "../utils/isSafeUrl.js";
+import { checkUrl } from "../utils/isSafeUrl.js";
 
 async function sendWebhook(url, event) {
     let status = "FAILED";
@@ -6,9 +6,16 @@ async function sendWebhook(url, event) {
 
     try {
         // Repete a checagem do cadastro, porque o DNS do destino pode ter mudado.
-        if (!await isSafeUrl(url)) {
-            console.error(`Envio bloqueado para o endpoint ${event.endpointId}: destino não permitido ou que não pôde ser verificado`);
-            return { status, httpStatus };
+        const urlCheck = await checkUrl(url);
+
+        if (urlCheck === "BLOCKED") {
+            console.error(`Envio bloqueado para o endpoint ${event.endpointId}: a URL aponta para um endereço não permitido`);
+            return { status, httpStatus, blocked: true };
+        }
+
+        if (urlCheck === "UNVERIFIED") {
+            console.error(`Envio não realizado para o endpoint ${event.endpointId}: não foi possível verificar o DNS do destino`);
+            return { status, httpStatus, blocked: false };
         }
 
         const response = await fetch(url, {
@@ -36,7 +43,7 @@ async function sendWebhook(url, event) {
         console.error("Erro ao enviar webhook:", error);
     }
 
-    return { status, httpStatus };
+    return { status, httpStatus, blocked: false };
 }
 
 export default sendWebhook;

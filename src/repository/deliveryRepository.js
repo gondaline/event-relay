@@ -9,11 +9,6 @@ async function createDelivery(delivery) {
     return result.rows[0];
 }
 
-async function findDeliveriesForRetry() {
-    const result = await pool.query("SELECT * FROM deliveries WHERE status = 'FAILED' AND attempts < 5");
-    return result.rows;
-}
-
 async function updateDeliveryAfterRetry(id, status, httpStatus) {
     const result = await pool.query("UPDATE deliveries SET attempts = attempts + 1, status = $1, http_status = $2 WHERE id = $3 RETURNING *", [status, httpStatus, id]);
     return result.rowCount;
@@ -24,4 +19,4 @@ async function findDeliveryById(id) {
     return result.rows[0];
 }
 
-export { createDelivery, findDeliveriesForRetry, updateDeliveryAfterRetry, findDeliveryById };
+export { createDelivery, updateDeliveryAfterRetry, findDeliveryById };

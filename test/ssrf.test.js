@@ -6,14 +6,15 @@ import { after, afterEach, before, beforeEach, describe, it, mock } from "node:t
 import pool from "../src/config/database.js";
 import registerEndpoint from "../src/services/endpointService.js";
 import deliverEvent from "../src/services/eventService.js";
-import { retryDeliveryById } from "../src/services/retryService.js";
+import retryDeliveryById from "../src/services/retryService.js";
 import sendWebhook from "../src/services/webhookService.js";
-import isSafeUrl from "../src/utils/isSafeUrl.js";
+import isSafeUrl, { checkUrl } from "../src/utils/isSafeUrl.js";
 import normalizeAndValidateUrl from "../src/utils/normalizeAndValidateUrl.js";
 
 const realFetch = globalThis.fetch;
 const event = { endpointId: 2, type: "payment.approved", data: { orderId: 123, amount: 150 } };
-const BLOCKED_SEND = { status: "FAILED", httpStatus: null };
+const BLOCKED_SEND = { status: "FAILED", httpStatus: null, blocked: true };
+const UNVERIFIED_SEND = { status: "FAILED", httpStatus: null, blocked: false };
 
 function mockDns(addresses) {
     mock.method(dns, "lookup", async () => addresses.map((address) => ({
@@ -378,7 +379,7 @@ describe("Envio do webhook", () => {
         process.env.ALLOW_PRIVATE_URLS = "true";
         globalThis.fetch.mock.mockImplementation(realFetch);
 
-        assert.deepEqual(await sendWebhook(`${baseUrl}/ok`, event), { status: "SUCCESS", httpStatus: 200 });
+        assert.deepEqual(await sendWebhook(`${baseUrl}/ok`, event), { status: "SUCCESS", httpStatus: 200, blocked: false });
         assert.deepEqual(hits, ["/ok"]);
     });
 
@@ -386,7 +387,7 @@ describe("Envio do webhook", () => {
         process.env.ALLOW_PRIVATE_URLS = "true";
         globalThis.fetch.mock.mockImplementation(realFetch);
 
-        assert.deepEqual(await sendWebhook(`${baseUrl}/redirect`, event), { status: "FAILED", httpStatus: 302 });
+        assert.deepEqual(await sendWebhook(`${baseUrl}/redirect`, event), { status: "FAILED", httpStatus: 302, blocked: false });
         assert.deepEqual(hits, ["/redirect"]);
     });
 
@@ -397,6 +398,15 @@ describe("Envio do webhook", () => {
         assert.equal(globalThis.fetch.mock.callCount(), 0);
     });
 
+    it("não chama o destino quando o DNS não responde, mas a falha não é definitiva", async () => {
+        mock.method(dns, "lookup", async () => {
+            throw Object.assign(new Error("not found"), { code: "ENOTFOUND" });
+        });
+
+        assert.deepEqual(await sendWebhook("https://missing.example/", event), UNVERIFIED_SEND);
+        assert.equal(globalThis.fetch.mock.callCount(), 0);
+    });
+
     it("envia para um domínio público, mantendo timeout, header e corpo", async () => {
         mockDns(["8.8.8.8"]);
         globalThis.fetch.mock.mockImplementation(async () => new Response(null, { status: 200 }));
@@ -404,7 +414,7 @@ describe("Envio do webhook", () => {
         const result = await sendWebhook("https://good.example/hook", { ...event, extra: "x" });
         const [url, options] = globalThis.fetch.mock.calls[0].arguments;
 
-        assert.deepEqual(result, { status: "SUCCESS", httpStatus: 200 });
+        assert.deepEqual(result, { status: "SUCCESS", httpStatus: 200, blocked: false });
         assert.equal(url, "https://good.example/hook");
         assert.equal(options.method, "POST");
         assert.equal(options.redirect, "manual");
@@ -417,7 +427,7 @@ describe("Envio do webhook", () => {
 describe("Fluxos completos com destino bloqueado", () => {
     const internalUrl = "http://169.254.169.254/latest/meta-data/";
 
-    it("POST /events: registra a falha e segue a regra atual de retry", async () => {
+    it("POST /events: registra a falha e não agenda retry", async () => {
         const inserted = [];
 
         pool.query.mock.mockImplementation(async (sql, params) => {
@@ -428,15 +438,31 @@ describe("Fluxos completos com destino bloqueado", () => {
         globalThis.fetch.mock.mockImplementation(async () => Response.json({ success: true }));
 
         const result = await deliverEvent(event);
+
+        assert.deepEqual(result, { ...BLOCKED_SEND, deliveryId: 7, retryScheduled: false });
+        assert.deepEqual(inserted[0].slice(3), ["FAILED", null]);
+        assert.equal(globalThis.fetch.mock.callCount(), 0);
+    });
+
+    it("POST /events: DNS sem resposta continua agendando retry", async () => {
+        mock.method(dns, "lookup", async () => {
+            throw Object.assign(new Error("not found"), { code: "ENOTFOUND" });
+        });
+        pool.query.mock.mockImplementation(async (sql) => {
+            if (sql.includes("FROM endpoints")) return { rows: [{ id: 2, url: "https://missing.example/" }] };
+            return { rows: [{ id: 7 }] };
+        });
+        globalThis.fetch.mock.mockImplementation(async () => Response.json({ success: true }));
+
+        const result = await deliverEvent(event);
         const calledUrls = globalThis.fetch.mock.calls.map((call) => call.arguments[0]);
 
-        assert.deepEqual(result, { ...BLOCKED_SEND, deliveryId: 7, retryScheduled: true });
-        assert.deepEqual(inserted[0].slice(3), ["FAILED", null]);
+        assert.deepEqual(result, { ...UNVERIFIED_SEND, deliveryId: 7, retryScheduled: true });
         assert.equal(calledUrls.length, 1);
         assert.ok(calledUrls[0].startsWith("https://api.cloudflare.com/"));
     });
 
-    it("Retry: registra a tentativa sem chamar o destino", async () => {
+    it("Retry: encerra as tentativas sem chamar o destino", async () => {
         const updates = [];
 
         pool.query.mock.mockImplementation(async (sql, params) => {
@@ -448,8 +474,46 @@ describe("Fluxos completos com destino bloqueado", () => {
             return { rows: [], rowCount: 1 };
         });
 
-        assert.deepEqual(await retryDeliveryById(7), BLOCKED_SEND);
+        const result = await retryDeliveryById(7);
+
+        assert.equal(result.status, "PERMANENT_FAILURE");
+        assert.equal(result.httpStatus, null);
         assert.deepEqual(updates, [["FAILED", null, 7]]);
         assert.equal(globalThis.fetch.mock.callCount(), 0);
+    });
+});
+
+describe("checkUrl: diferença entre bloqueado e não verificado", () => {
+    for (const url of ["http://127.0.0.1/", "http://[::1]/", "http://169.254.169.254/", "ftp://8.8.8.8/", "not a url"]) {
+        it(`${url} é BLOCKED`, async () => {
+            assert.equal(await checkUrl(url), "BLOCKED");
+        });
+    }
+
+    it("domínio que aponta para um IP privado é BLOCKED", async () => {
+        mockDns(["10.0.0.5"]);
+        assert.equal(await checkUrl("https://evil.example/"), "BLOCKED");
+    });
+
+    it("domínio que aponta para um IP público é SAFE", async () => {
+        mockDns(["8.8.8.8"]);
+        assert.equal(await checkUrl("https://good.example/"), "SAFE");
+    });
+
+    it("domínio que o DNS não encontra é UNVERIFIED", async () => {
+        mock.method(dns, "lookup", async () => {
+            throw Object.assign(new Error("not found"), { code: "ENOTFOUND" });
+        });
+        assert.equal(await checkUrl("https://missing.example/"), "UNVERIFIED");
+    });
+
+    it("resposta vazia do DNS é UNVERIFIED", async () => {
+        mockDns([]);
+        assert.equal(await checkUrl("https://empty.example/"), "UNVERIFIED");
+    });
+
+    it("URL local com ALLOW_PRIVATE_URLS=true é SAFE", async () => {
+        process.env.ALLOW_PRIVATE_URLS = "true";
+        assert.equal(await checkUrl("http://localhost:4000/webhook"), "SAFE");
     });
 });

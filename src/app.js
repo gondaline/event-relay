@@ -20,6 +20,12 @@ app.use("/deliveries", deliveriesRoutes)
 app.use(notFoundHandler);
 app.use(errorHandler);
 
-app.listen(PORT, () => {
+// No Express 5, um erro ao abrir a porta chega neste callback, e não como exceção.
+app.listen(PORT, (error) => {
+    if (error) {
+        console.error(`Não foi possível iniciar o EventRelay na porta ${PORT}:`, error.message);
+        process.exit(1);
+    }
+
     console.log(`EventRelay rodando na porta ${PORT}`);
 })

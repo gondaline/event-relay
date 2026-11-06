@@ -30,6 +30,6 @@ Com esse valor, as checagens de endereço e de DNS são desligadas. A configura�
 - **Rede interna:** a aplicação não substitui o isolamento da rede. Em produção, um firewall de saída deve impedir o acesso a serviços internos, mesmo que uma checagem falhe.
 - **Serviços públicos:** um endereço público que encaminha requisições para uma rede interna não é detectado, porque o bloqueio só enxerga o IP de destino.
 - **Destinos que redirecionam:** como redirecionamentos não são seguidos, o endpoint precisa ser cadastrado com a URL final. Uma resposta 3xx é registrada como falha.
-- **Bloqueio durante o envio:** um envio bloqueado é registrado como `FAILED`, sem código HTTP, igual a um destino sem resposta. Por isso, ele segue as regras atuais de retry até o limite de tentativas, sem nunca chamar o destino.
-- **Falha de DNS:** se o DNS não responder, a URL é recusada, já que não há como verificá-la. No cadastro isso resulta em erro 400.
+- **Bloqueio durante o envio:** se um domínio cadastrado passar a apontar para um endereço bloqueado, o evento não é enviado e a entrega fica registrada como `FAILED`, sem código HTTP. `POST /events` responde `422`, e não há novas tentativas automáticas.
+- **Falha de DNS:** se o DNS não responder, não há como verificar a URL, então nada é enviado. No cadastro isso resulta em erro `400`. No envio é uma falha temporária: `POST /events` responde `202` e o retry é agendado.
 - **Tempo de resposta:** a consulta de DNS pode levar até 3 segundos antes do envio, que tem seu próprio timeout de 5 segundos.

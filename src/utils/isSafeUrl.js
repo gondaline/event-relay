@@ -56,18 +56,21 @@ function arePrivateUrlsAllowed() {
     return process.env.ALLOW_PRIVATE_URLS === "true" && process.env.NODE_ENV !== "production";
 }
 
-async function isSafeUrl(url) {
+// SAFE: pode enviar.
+// BLOCKED: a URL não é permitida, e tentar de novo não mudaria isso.
+// UNVERIFIED: o DNS não respondeu, então não há como verificar agora. A falha é temporária.
+async function checkUrl(url) {
     let urlObject;
 
     try {
         urlObject = new URL(url);
     } catch (error) {
-        return false;
+        return "BLOCKED";
     }
 
-    if (urlObject.protocol !== "http:" && urlObject.protocol !== "https:") return false;
+    if (urlObject.protocol !== "http:" && urlObject.protocol !== "https:") return "BLOCKED";
 
-    if (arePrivateUrlsAllowed()) return true;
+    if (arePrivateUrlsAllowed()) return "SAFE";
 
     // O hostname de um IPv6 vem entre colchetes: [::1]
     const hostname = urlObject.hostname.replace(/^\[|\]$/g, "");
@@ -78,12 +81,18 @@ async function isSafeUrl(url) {
             wait(DNS_TIMEOUT_MS, null, { ref: false })
         ]);
 
-        // Um único endereço bloqueado já recusa a URL. Sem resposta do DNS,
-        // não há como verificar o destino, então ela também é recusada.
-        return Boolean(addresses?.length) && !addresses.some(isBlockedAddress);
+        if (!addresses?.length) return "UNVERIFIED";
+
+        // Um único endereço bloqueado já recusa a URL.
+        return addresses.some(isBlockedAddress) ? "BLOCKED" : "SAFE";
     } catch (error) {
-        return false;
+        return "UNVERIFIED";
     }
 }
 
+async function isSafeUrl(url) {
+    return (await checkUrl(url)) === "SAFE";
+}
+
 export default isSafeUrl;
+export { checkUrl };
