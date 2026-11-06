@@ -2,6 +2,7 @@ import { findDeliveriesForRetry, findDeliveryById, updateDeliveryAfterRetry } fr
 import { findEndpointById } from "../repository/endpointRepository.js";
 import createHttpError from "../utils/createHttpError.js"
 import isRetryable from "../utils/isRetryable.js";
+import parseDeliveryId from "../utils/parseDeliveryId.js";
 import sendWebhook from "./webhookService.js";
 
 function permanentFailure(httpStatus) {
@@ -46,7 +47,8 @@ async function retryDeliveries() {
 }
 
 async function retryDeliveryById(id) {
-    const delivery = await findDeliveryById(id);
+    const deliveryId = parseDeliveryId(id);
+    const delivery = await findDeliveryById(deliveryId);
 
     if (!delivery) throw createHttpError(404, "Nenhum ID encontrado");
     
