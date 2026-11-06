@@ -350,6 +350,8 @@ Erros de validação, autenticação, rota inexistente e erros internos trazem a
 
 A rota de retry envia o cabeçalho `X-EventRelay-Retry-Handled: true` em todas as respostas. Assim, o Worker sabe que a resposta veio da API, e não de um túnel ou servidor intermediário.
 
+Por um túnel da Cloudflare, o `502` chega sem o cabeçalho, porque a Cloudflare o troca pela própria página de erro. O Worker agenda outra tentativa do mesmo jeito.
+
 | Resposta recebida | Decisão |
 |---|---|
 | `2xx`, `400` ou `404` com o cabeçalho | Encerra a mensagem (`ack`) |
@@ -424,10 +426,14 @@ Os testes não usam PostgreSQL, rede nem conta da Cloudflare: o banco e as chama
 - **API (341 testes):** rotas, formato das respostas, regras de retry, validação de IDs, proteção contra SSRF e falhas ao publicar na fila.
 - **Worker (39 testes):** rodam no `workerd`, o ambiente de execução dos Workers, e cobrem sucesso, falha temporária, erro definitivo, resposta de servidor desconhecido, falha de rede, mensagens malformadas e intervalos entre tentativas.
 
+Além dos testes automáticos, o fluxo também foi verificado fora deles:
+
+- **Cloudflare real:** com o Worker publicado e a fila real, uma entrega falhou três vezes e teve sucesso na quarta tentativa, com esperas crescentes entre os envios. Outra recebeu `404` e parou sem novos envios.
+- **DLQ:** testada com a fila local do `wrangler dev` e menos tentativas, porque na configuração real a mensagem levaria cerca de 5 horas para chegar lá.
+
 ## Limitações conhecidas
 
 - **Não é um sistema de produção:** a API foi pensada para rodar localmente, exposta ao Worker por um túnel.
-- **Cloudflare real:** a versão atual do Worker foi testada com Vitest e com a fila local do `wrangler dev`, mas ainda não na Cloudflare real.
 - **PostgreSQL e fila não são atômicos:** se a publicação falhar depois de a entrega ser salva, o retry automático não acontece. O cliente é avisado e pode usar a rota de retry, dentro do limite de tentativas.
 - **Webhook enviado antes de salvar:** se o banco falhar logo depois do envio, o destino recebe o evento, mas a entrega não fica registrada, e a API responde `500`.
 - **Entrega "ao menos uma vez":** o destino pode receber o mesmo evento mais de uma vez, por exemplo depois de um timeout ou de uma mensagem repetida pela fila. O webhook não leva um ID para o destino detectar duplicatas.
