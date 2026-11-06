@@ -1,10 +1,9 @@
 import { findDeliveriesForRetry, findDeliveryById, updateDeliveryAfterRetry } from "../repository/deliveryRepository.js";
 import { findEndpointById } from "../repository/endpointRepository.js";
 import createHttpError from "../utils/createHttpError.js"
+import sendWebhook from "./webhookService.js";
 
 async function retryOneDelivery(delivery) {
-    let status = "FAILED";
-    let httpStatus = null;
     const endpointId = await findEndpointById(delivery.endpoint_id);
 
     const event = {
@@ -13,23 +12,7 @@ async function retryOneDelivery(delivery) {
         "data": delivery.payload
     }
 
-    try {
-        const response = await fetch(endpointId.url, {
-            signal: AbortSignal.timeout(5000),
-            method: 'POST',
-            headers: {
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify(event)
-        })
-
-        if (response.ok) status = "SUCCESS"
-
-        httpStatus = response.status;
-
-    } catch (error) {
-        console.error("Erro ao reenviar evento", error);
-    }
+    const { status, httpStatus } = await sendWebhook(endpointId.url, event);
 
     await updateDeliveryAfterRetry(delivery.id, status, httpStatus);
 

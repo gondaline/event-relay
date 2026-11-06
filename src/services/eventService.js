@@ -2,6 +2,7 @@ import { createDelivery } from "../repository/deliveryRepository.js";
 import { findEndpointById } from "../repository/endpointRepository.js";
 import createHttpError from "../utils/createHttpError.js";
 import publishRetryMessage from "./queueService.js";
+import sendWebhook from "./webhookService.js";
 
 async function deliverEvent(event) {
 
@@ -19,26 +20,7 @@ async function deliverEvent(event) {
     const endpoint = await findEndpointById(endpointId)
     if (!endpoint) throw createHttpError(404, "Endpoint não encontrado. Cadastre um em POST /endpoints");
 
-    let status = "FAILED";
-    let httpStatus = null;
-
-    try {
-        const response = await fetch(endpoint.url, {
-            signal: AbortSignal.timeout(5000),
-            method: 'POST',
-            headers: {
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify(event)
-        });
-
-        if (response.ok) status = "SUCCESS";
-
-        httpStatus = response.status;
-
-    } catch (error) {
-        console.error("Erro ao conectar ao destino:", error);
-    }
+    const { status, httpStatus } = await sendWebhook(endpoint.url, event);
 
     const delivery = await createDelivery({
         "endpoint_id": event.endpointId,
