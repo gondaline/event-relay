@@ -1,0 +1,8 @@
+# Copie para .dev.vars para rodar o Worker localmente (npx wrangler dev).
+# Nunca faça commit do arquivo .dev.vars.
+
+# URL pública da API, sem barra no final (ex.: a URL do Cloudflare Tunnel).
+EVENT_RELAY_API_URL=https://your-api-url.example.com
+
+# Deve ser igual ao WORKER_AUTH_TOKEN do .env da API.
+WORKER_AUTH_TOKEN=your_worker_auth_token

@@ -1,0 +1,22 @@
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "retry-worker",
+	"main": "src/index.js",
+	"compatibility_date": "2026-11-03",
+	"observability": {
+		"enabled": true
+	},
+	"upload_source_maps": true,
+	"queues": {
+		"consumers": [
+			{
+				"queue": "event-relay-retries",
+				"max_batch_size": 5,
+				"max_batch_timeout": 5,
+				"max_retries": 10,
+				"retry_delay": 60,
+				"dead_letter_queue": "event-relay-dlq"
+			}
+		]
+	}
+}

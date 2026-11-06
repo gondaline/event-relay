@@ -11,4 +11,9 @@ const pool = new Pool({
     database: process.env.DB_NAME
 });
 
+// Sem este listener, a queda de uma conexão ociosa encerra o processo.
+pool.on("error", (error) => {
+    console.error("Erro em conexão ociosa do PostgreSQL:", error.message);
+});
+
 export default pool;
