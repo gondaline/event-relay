@@ -2,6 +2,9 @@ import { retryDeliveryById } from "../services/retryService.js";
 
 async function retryDelivery(req, res) {
 
+    // Avisa o Worker de que esta resposta veio mesmo da rota de retry da API.
+    res.set("X-EventRelay-Retry-Handled", "true");
+
     const id = req.params.id;
 
     try {

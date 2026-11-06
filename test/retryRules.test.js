@@ -84,6 +84,9 @@ function addDelivery(fields) {
 // Chama a rota de retry do mesmo jeito que o Express, sem subir o servidor.
 async function callRetryRoute(id) {
     const res = {
+        set() {
+            return this;
+        },
         status(code) {
             this.statusCode = code;
             return this;
