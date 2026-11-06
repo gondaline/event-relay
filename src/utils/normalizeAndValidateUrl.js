@@ -9,6 +9,12 @@ function normalizeAndValidateUrl(string) {
     try {
         const urlObject = new URL(urlString);
 
+        // O fetch não aceita URLs com usuário ou senha, e a credencial
+        // acabaria aparecendo nos logs de erro.
+        if (urlObject.username || urlObject.password) {
+            return null;
+        }
+
         if(urlObject.protocol === "http:" || urlObject.protocol === "https:") {
             return urlObject.href;
         }
