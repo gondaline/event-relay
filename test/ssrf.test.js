@@ -430,7 +430,7 @@ describe("Fluxos completos com destino bloqueado", () => {
         const result = await deliverEvent(event);
         const calledUrls = globalThis.fetch.mock.calls.map((call) => call.arguments[0]);
 
-        assert.deepEqual(result, BLOCKED_SEND);
+        assert.deepEqual(result, { ...BLOCKED_SEND, deliveryId: 7, retryScheduled: true });
         assert.deepEqual(inserted[0].slice(3), ["FAILED", null]);
         assert.equal(calledUrls.length, 1);
         assert.ok(calledUrls[0].startsWith("https://api.cloudflare.com/"));

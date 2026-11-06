@@ -143,7 +143,7 @@ describe("Primeira tentativa", () => {
         it(`${httpStatus} registra a falha e vai para a fila`, async () => {
             destinationAnswers = [httpStatus];
 
-            assert.deepEqual(await deliverEvent(event), { status: "FAILED", httpStatus });
+            assert.deepEqual(await deliverEvent(event), { deliveryId: 1, status: "FAILED", httpStatus, retryScheduled: true });
             assert.deepEqual(published, [1]);
             assert.equal(deliveries[0].status, "FAILED");
             assert.equal(deliveries[0].http_status, httpStatus);
@@ -154,7 +154,7 @@ describe("Primeira tentativa", () => {
         it(`${httpStatus} registra a falha e não vai para a fila`, async () => {
             destinationAnswers = [httpStatus];
 
-            assert.deepEqual(await deliverEvent(event), { status: "FAILED", httpStatus });
+            assert.deepEqual(await deliverEvent(event), { deliveryId: 1, status: "FAILED", httpStatus, retryScheduled: false });
             assert.deepEqual(published, []);
             assert.equal(deliveries[0].status, "FAILED");
             assert.equal(deliveries[0].http_status, httpStatus);
@@ -164,7 +164,7 @@ describe("Primeira tentativa", () => {
     it("200 registra o sucesso e não vai para a fila", async () => {
         destinationAnswers = [200];
 
-        assert.deepEqual(await deliverEvent(event), { status: "SUCCESS", httpStatus: 200 });
+        assert.deepEqual(await deliverEvent(event), { deliveryId: 1, status: "SUCCESS", httpStatus: 200, retryScheduled: false });
         assert.deepEqual(published, []);
     });
 });

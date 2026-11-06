@@ -5,6 +5,23 @@ import isRetryable from "../utils/isRetryable.js";
 import publishRetryMessage from "./queueService.js";
 import sendWebhook from "./webhookService.js";
 
+// A entrega já está salva quando esta função é chamada. Se a publicação falhar,
+// o cliente precisa saber disso, e não receber um erro que esconda o deliveryId.
+async function scheduleRetry(deliveryId) {
+    try {
+        console.log(`Publicando entrega ${deliveryId} na fila`);
+
+        await publishRetryMessage(deliveryId);
+        console.log(`Entrega ${deliveryId} publicada com sucesso`);
+
+        return true;
+    } catch (error) {
+        console.error(`Falha ao publicar a entrega ${deliveryId} na fila:`, error);
+
+        return false;
+    }
+}
+
 async function deliverEvent(event) {
 
     if (!event?.endpointId) throw createHttpError(400, "O campo endpointId é obrigatório e deve ser maior que zero");
@@ -31,16 +48,9 @@ async function deliverEvent(event) {
         "http_status": httpStatus
     })
 
-    if (isRetryable(httpStatus)) {
-        const id = delivery.id;
-        console.log(`Publicando entrega ${id} na fila`);
+    const retryScheduled = isRetryable(httpStatus) && await scheduleRetry(delivery.id);
 
-        await publishRetryMessage(id);
-        console.log(`Entrega ${id} publicada com sucesso`);
-
-    }
-
-    return { status, httpStatus }
+    return { deliveryId: delivery.id, status, httpStatus, retryScheduled };
 }
 
 export default deliverEvent;
